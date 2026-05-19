@@ -1,0 +1,1396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Job Search System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background: #0f172a; color: #e2e8f0; font-family: 'Segoe UI', sans-serif; }
+        .card { background: #1e293b; border: 1px solid #334155; border-radius: 8px; }
+        .btn { padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: 600; transition: all 0.2s; }
+        .btn-primary { background: #3b82f6; color: white; }
+        .btn-primary:hover { background: #2563eb; }
+        .btn-success { background: #10b981; color: white; }
+        .btn-success:hover { background: #059669; }
+        .btn-warning { background: #f59e0b; color: white; }
+        .btn-warning:hover { background: #d97706; }
+        .btn-danger { background: #ef4444; color: white; }
+        .btn-danger:hover { background: #dc2626; }
+        .btn-ghost { background: #334155; color: #94a3b8; }
+        .btn-ghost:hover { background: #475569; color: white; }
+        .tab { padding: 10px 20px; cursor: pointer; border-bottom: 2px solid transparent; color: #64748b; transition: all 0.2s; }
+        .tab.active { border-bottom-color: #3b82f6; color: #3b82f6; }
+        .tab:hover { color: #94a3b8; }
+        .badge { padding: 2px 8px; border-radius: 12px; font-size: 12px; font-weight: 600; }
+        .badge-yes { background: #064e3b; color: #34d399; }
+        .badge-maybe { background: #78350f; color: #fbbf24; }
+        .badge-no { background: #450a0a; color: #f87171; }
+        .badge-blocked { background: #1e1b4b; color: #818cf8; }
+        .score-high { color: #34d399; }
+        .score-mid { color: #fbbf24; }
+        .score-low { color: #f87171; }
+        .log-output { background: #0f172a; border: 1px solid #334155; border-radius: 6px; padding: 16px; font-family: 'Courier New', monospace; font-size: 13px; height: 400px; overflow-y: auto; color: #94a3b8; }
+        .log-output .success { color: #34d399; }
+        .log-output .error { color: #f87171; }
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+        .dot-green { background: #34d399; }
+        .dot-yellow { background: #fbbf24; }
+        .dot-red { background: #f87171; }
+        input, select, textarea { background: #0f172a; border: 1px solid #334155; color: #e2e8f0; border-radius: 6px; padding: 8px 12px; width: 100%; }
+        input:focus, select:focus, textarea:focus { outline: none; border-color: #3b82f6; }
+        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 50; align-items: center; justify-content: center; }
+        .modal.open { display: flex; }
+        .doc-preview { background: #0f172a; border: 1px solid #334155; border-radius: 6px; padding: 20px; font-family: 'Courier New', monospace; font-size: 12px; white-space: pre-wrap; max-height: 70vh; overflow-y: auto; color: #94a3b8; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #1e293b; }
+        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
+        .followup-urgent { border-left: 3px solid #ef4444; }
+        .followup-soon { border-left: 3px solid #f59e0b; }
+        tr:hover { background: #1e293b; }
+    </style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="border-b border-slate-700 px-6 py-4 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+        <span class="text-2xl">🤖</span>
+        <div>
+            <h1 class="text-lg font-bold text-white">AI Job Search System</h1>
+            <p class="text-xs text-slate-400" id="last-updated">Loading...</p>
+        </div>
+    </div>
+    <div class="flex gap-2">
+        <button class="btn btn-ghost text-sm" onclick="runScript('scout')">🔍 Scout Jobs</button>
+        <button class="btn btn-ghost text-sm" onclick="runScript('pipeline')">📊 Analyze Jobs</button>
+        <button class="btn btn-success text-sm" onclick="runScript('stage3')">📄 Generate Docs</button>
+        <button class="btn btn-primary text-sm" onclick="runScript('digest')">📋 Refresh Digest</button>
+    </div>
+</div>
+
+<!-- Tabs -->
+<div class="flex border-b border-slate-700 px-6">
+    <div class="tab active" onclick="showTab('dashboard')">Dashboard</div>
+    <div class="tab" onclick="showTab('jobs')">Jobs</div>
+    <div class="tab" onclick="showTab('applications')">Applications</div>
+    <div class="tab" onclick="showTab('documents')">Documents</div>
+    <div class="tab" onclick="showTab('run')">Run Pipeline</div>
+	<div class="tab" onclick="showTab('analyze')">Analyze Job</div>
+</div>
+
+<!-- Main Content -->
+<div class="p-6">
+
+    <!-- DASHBOARD TAB -->
+    <div id="tab-dashboard">
+
+        <!-- Stats Row -->
+        <div class="grid grid-cols-4 gap-4 mb-6">
+            <div class="card p-4">
+                <p class="text-slate-400 text-sm mb-1">Jobs Today</p>
+                <p class="text-3xl font-bold text-white" id="stat-total-jobs">-</p>
+                <p class="text-xs text-slate-500 mt-1">from latest scout</p>
+            </div>
+            <div class="card p-4">
+                <p class="text-slate-400 text-sm mb-1">YES / MAYBE</p>
+                <p class="text-3xl font-bold" id="stat-yes-maybe">-</p>
+                <p class="text-xs text-slate-500 mt-1">worth applying</p>
+            </div>
+            <div class="card p-4">
+                <p class="text-slate-400 text-sm mb-1">Applications</p>
+                <p class="text-3xl font-bold text-white" id="stat-applications">-</p>
+                <p class="text-xs text-slate-500 mt-1" id="stat-active">active</p>
+            </div>
+            <div class="card p-4">
+                <p class="text-slate-400 text-sm mb-1">Follow-ups Due</p>
+                <p class="text-3xl font-bold" id="stat-followups">-</p>
+                <p class="text-xs text-slate-500 mt-1">next 3 days</p>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-3 gap-4">
+
+            <!-- Top Jobs -->
+            <div class="card p-4 col-span-2">
+                <h3 class="font-semibold text-white mb-3">Today's Top Jobs</h3>
+                <div id="top-jobs-list">
+                    <p class="text-slate-500 text-sm">Loading...</p>
+                </div>
+            </div>
+
+            <!-- Pipeline Status + Follow-ups -->
+            <div class="flex flex-col gap-4">
+                <div class="card p-4">
+                    <h3 class="font-semibold text-white mb-3">Pipeline Status</h3>
+                    <div id="pipeline-status" class="text-sm space-y-2">
+                        <p class="text-slate-500">Loading...</p>
+                    </div>
+                </div>
+
+                <div class="card p-4">
+                    <h3 class="font-semibold text-white mb-3">⚠️ Follow-ups Due</h3>
+                    <div id="followups-list">
+                        <p class="text-slate-500 text-sm">None due</p>
+                    </div>
+                </div>
+
+                <div class="card p-4">
+                    <h3 class="font-semibold text-white mb-3">Application Status</h3>
+                    <div id="status-breakdown" class="text-sm space-y-1">
+                        <p class="text-slate-500">Loading...</p>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- JOBS TAB -->
+    <div id="tab-jobs" class="hidden">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-semibold text-white">Today's Jobs</h2>
+            <div class="flex gap-2">
+                <select id="filter-verdict" onchange="filterJobs()" class="text-sm" style="width:auto">
+                    <option value="">All verdicts</option>
+                    <option value="YES">YES only</option>
+                    <option value="MAYBE">MAYBE only</option>
+                </select>
+            </div>
+        </div>
+        <div id="jobs-table">
+            <p class="text-slate-500">Loading...</p>
+        </div>
+    </div>
+
+    <!-- APPLICATIONS TAB -->
+    <div id="tab-applications" class="hidden">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-semibold text-white">Application Tracker</h2>
+            <div class="flex gap-2">
+                <select id="app-filter-status" onchange="renderApplications()" class="text-sm" style="width:auto">
+                    <option value="">All Statuses</option>
+                    <option value="Applied">Applied</option>
+                    <option value="Phone Screen">Phone Screen</option>
+                    <option value="Interview">Interview</option>
+                    <option value="Offer">Offer</option>
+                    <option value="Rejected">Rejected</option>
+                    <option value="Withdrawn">Withdrawn</option>
+                </select>
+                <select id="app-sort" onchange="renderApplications()" class="text-sm" style="width:auto">
+                    <option value="newest">Newest First</option>
+                    <option value="oldest">Oldest First</option>
+                    <option value="company">Company A-Z</option>
+                    <option value="status">By Status</option>
+                </select>
+                <button class="btn btn-warning text-sm" onclick="exportUnemploymentReport()">📋 FL Unemployment Report</button>
+                <button class="btn btn-primary text-sm" onclick="openAddModal()">+ Add Application</button>
+            </div>
+        </div>
+        <div id="applications-table">
+            <p class="text-slate-500">Loading...</p>
+        </div>
+    </div>
+
+    <!-- DOCUMENTS TAB -->
+    <div id="tab-documents" class="hidden">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-semibold text-white">Documents</h2>
+            <input type="text" id="doc-search" placeholder="Filter by company name..."
+                oninput="filterDocuments()"
+                style="width:260px;background:#0f172a;border:1px solid #334155;color:#e2e8f0;border-radius:6px;padding:6px 12px;font-size:13px">
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+            <div class="card p-4">
+                <h3 class="font-semibold text-white mb-3">📄 Tailored Resumes
+                    <span id="resume-count" class="text-slate-400 text-sm font-normal"></span>
+                </h3>
+                <div id="doc-resumes" style="max-height:420px;overflow-y:auto">
+                    <p class="text-slate-500 text-sm">Loading...</p>
+                </div>
+            </div>
+            <div class="card p-4">
+                <h3 class="font-semibold text-white mb-3">✉️ Cover Letters
+                    <span id="cover-count" class="text-slate-400 text-sm font-normal"></span>
+                </h3>
+                <div id="doc-covers" style="max-height:420px;overflow-y:auto">
+                    <p class="text-slate-500 text-sm">Loading...</p>
+                </div>
+            </div>
+            <div class="card p-4">
+                <h3 class="font-semibold text-white mb-3">🎯 Interview Prep
+                    <span id="interview-count" class="text-slate-400 text-sm font-normal"></span>
+                </h3>
+                <div id="doc-interview" style="max-height:420px;overflow-y:auto">
+                    <p class="text-slate-500 text-sm">Loading...</p>
+                </div>
+            </div>
+            <div class="card p-4">
+                <h3 class="font-semibold text-white mb-3">📋 Daily Digests
+                    <span id="digest-count" class="text-slate-400 text-sm font-normal"></span>
+                </h3>
+                <div id="doc-digests" style="max-height:420px;overflow-y:auto">
+                    <p class="text-slate-500 text-sm">Loading...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+	<!-- ANALYZE JOB TAB -->
+	<div id="tab-analyze" class="hidden">
+		<h2 class="text-lg font-semibold text-white mb-4">Analyze Any Job</h2>
+		<p class="text-slate-400 text-sm mb-4">Paste any job description to get a full analysis, fit score, and generated documents.</p>
+		
+		<div class="grid grid-cols-2 gap-4 mb-4">
+			<div class="card p-4">
+				<h3 class="font-semibold text-white mb-3">Job Details</h3>
+				<div class="space-y-3">
+					<div>
+						<label class="text-sm text-slate-400 mb-1 block">Job Title *</label>
+						<input type="text" id="manual-title" placeholder="e.g. Information Security Analyst">
+					</div>
+					<div>
+						<label class="text-sm text-slate-400 mb-1 block">Company *</label>
+						<input type="text" id="manual-company" placeholder="e.g. Deutsche Bank">
+					</div>
+					<div>
+						<label class="text-sm text-slate-400 mb-1 block">Location</label>
+						<input type="text" id="manual-location" placeholder="e.g. Jacksonville FL / Remote">
+					</div>
+					<div>
+						<label class="text-sm text-slate-400 mb-1 block">Job URL</label>
+						<input type="text" id="manual-url" placeholder="https://...">
+					</div>
+				</div>
+			</div>
+			
+			<div class="card p-4">
+				<h3 class="font-semibold text-white mb-3">Job Description *</h3>
+				<textarea id="manual-description" rows="12" 
+					placeholder="Paste the full job description here...&#10;&#10;The more detail you include, the better the analysis."
+					style="resize:vertical"></textarea>
+			</div>
+		</div>
+		
+		<div class="flex gap-3 mb-4">
+			<button class="btn btn-primary" onclick="analyzeManualJob()">
+				>> Analyze Job
+			</button>
+			<button class="btn btn-success" onclick="analyzeAndGenerate()">
+				>> Analyze + Generate Documents
+			</button>
+			<button class="btn btn-warning" onclick="forceGenerate()">
+				>> Force Generate Docs
+			</button>
+			<button class="btn btn-ghost" onclick="clearManualForm()">
+				Clear
+			</button>
+		</div>
+		
+		<div class="card p-4">
+			<div class="flex items-center justify-between mb-3">
+				<h3 class="font-semibold text-white">Analysis Output</h3>
+				<div class="flex items-center gap-2">
+					<div id="manual-score-badge"></div>
+					<button id="manual-log-btn" class="btn btn-success text-xs py-1 hidden"
+						onclick="logManualApplication()">+ Log Application</button>
+				</div>
+			</div>
+			<div class="log-output" id="manual-output">
+				<span class="text-slate-600">Paste a job description above and click Analyze...</span>
+			</div>
+		</div>
+	</div>
+
+    <!-- RUN PIPELINE TAB -->
+    <div id="tab-run" class="hidden">
+        <h2 class="text-lg font-semibold text-white mb-4">Run Pipeline</h2>
+        <div class="grid grid-cols-4 gap-3 mb-6">
+            <button class="btn btn-ghost" onclick="runScript('scout')">
+                🔍 Scout Jobs<br><span class="text-xs font-normal">Find new jobs</span>
+            </button>
+            <button class="btn btn-ghost" onclick="runScript('pipeline')">
+                📊 Analyze Jobs<br><span class="text-xs font-normal">Score all jobs</span>
+            </button>
+            <button class="btn btn-success" onclick="runScript('stage3')">
+                📄 Generate Docs<br><span class="text-xs font-normal">Docs for top scorers</span>
+            </button>
+            <button class="btn btn-ghost" onclick="runScript('digest')">
+                📋 Refresh Digest<br><span class="text-xs font-normal">Rebuild summary</span>
+            </button>
+        </div>
+        <div class="card p-4">
+            <div class="flex items-center justify-between mb-3">
+                <h3 class="font-semibold text-white">Output</h3>
+                <button class="btn btn-ghost text-xs" onclick="clearLog()">Clear</button>
+            </div>
+            <div class="log-output" id="log-output">
+                <span class="text-slate-600">Ready. Click a button above to run a pipeline...</span>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- Document Preview Modal -->
+<div class="modal" id="doc-modal">
+    <div class="card p-6" style="width:800px;max-height:90vh;overflow-y:auto">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="font-semibold text-white" id="modal-title">Document</h3>
+            <button class="btn btn-ghost text-sm" onclick="closeModal()">✕ Close</button>
+        </div>
+        <div class="doc-preview" id="modal-content">Loading...</div>
+    </div>
+</div>
+
+<!-- Add Application Modal -->
+<div class="modal" id="add-modal">
+    <div class="card p-6" style="width:560px">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="font-semibold text-white">Add Application</h3>
+            <button class="btn btn-ghost text-sm" onclick="closeAddModal()">✕</button>
+        </div>
+        <div class="space-y-3">
+            <div>
+                <label class="text-sm text-slate-400 mb-1 block">Company</label>
+                <input type="text" id="add-company" placeholder="Company name">
+            </div>
+            <div>
+                <label class="text-sm text-slate-400 mb-1 block">Job Title</label>
+                <input type="text" id="add-title" placeholder="Job title">
+            </div>
+            <div>
+                <label class="text-sm text-slate-400 mb-1 block">URL</label>
+                <input type="text" id="add-url" placeholder="Job posting URL">
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="text-sm text-slate-400 mb-1 block">Source</label>
+                    <input type="text" id="add-source" placeholder="RemoteOK / Jobicy / Direct">
+                </div>
+                <div>
+                    <label class="text-sm text-slate-400 mb-1 block">Date Applied</label>
+                    <input type="date" id="add-date">
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="text-sm text-slate-400 mb-1 block">Resume Version</label>
+                    <input type="text" id="add-resume" placeholder="master / WWT_tailored">
+                </div>
+                <div class="flex items-end pb-2">
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" id="add-cover" class="w-4 h-4">
+                        <span class="text-sm text-slate-400">Cover letter sent</span>
+                    </label>
+                </div>
+            </div>
+            <div>
+                <label class="text-sm text-slate-400 mb-1 block">Notes</label>
+                <textarea id="add-notes" rows="2" placeholder="Any notes..."></textarea>
+            </div>
+        </div>
+        <div class="flex justify-end gap-2 mt-4">
+            <button class="btn btn-ghost" onclick="closeAddModal()">Cancel</button>
+            <button class="btn btn-primary" onclick="submitApplication()">Add Application</button>
+        </div>
+    </div>
+</div>
+
+<!-- Update Status Modal -->
+<div class="modal" id="status-modal">
+    <div class="card p-6" style="width:440px">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="font-semibold text-white">Update Status</h3>
+            <button class="btn btn-ghost text-sm" onclick="closeStatusModal()">✕</button>
+        </div>
+        <p class="text-slate-400 text-sm mb-3" id="status-modal-job"></p>
+        <div class="space-y-3">
+            <div>
+                <label class="text-sm text-slate-400 mb-1 block">New Status</label>
+                <select id="status-select">
+                    <option>Applied</option>
+                    <option>Phone Screen Scheduled</option>
+                    <option>Phone Screen Complete</option>
+                    <option>Technical Interview Scheduled</option>
+                    <option>Technical Interview Complete</option>
+                    <option>Final Interview Scheduled</option>
+                    <option>Final Interview Complete</option>
+                    <option>Offer Received</option>
+                    <option>Offer Accepted</option>
+                    <option>Offer Declined</option>
+                    <option>Rejected</option>
+                    <option>Withdrawn</option>
+                    <option>No Response - Following Up</option>
+                </select>
+            </div>
+            <div>
+                <label class="text-sm text-slate-400 mb-1 block">Notes</label>
+                <textarea id="status-notes" rows="2" placeholder="Add notes..."></textarea>
+            </div>
+        </div>
+        <div class="flex justify-end gap-2 mt-4">
+            <button class="btn btn-ghost" onclick="closeStatusModal()">Cancel</button>
+            <button class="btn btn-primary" onclick="submitStatus()">Update</button>
+        </div>
+    </div>
+</div>
+
+<script>
+// ── State ──────────────────────────────────────────────────────
+let allJobs = [];
+let allApplications = [];
+let allDocs = {};
+let currentAppId = null;
+let activeScript = null;
+
+// ── Tab navigation ─────────────────────────────────────────────
+function showTab(name) {
+    document.querySelectorAll('[id^="tab-"]').forEach(t => t.classList.add('hidden'));
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.getElementById(`tab-${name}`).classList.remove('hidden');
+    document.querySelectorAll('.tab').forEach(t => {
+        if (t.textContent.toLowerCase().includes(name.toLowerCase()) ||
+            (name === 'run' && t.textContent.includes('Run'))) {
+            t.classList.add('active');
+        }
+    });
+    if (name === 'jobs') loadJobs();
+    if (name === 'applications') loadApplications();
+    if (name === 'documents') loadDocuments();
+	if (name === 'analyze') {
+		document.getElementById('manual-title').focus();
+	}
+}
+
+// ── Dashboard ─────────────────────────────────────────────────
+async function loadDashboard() {
+    try {
+        const res = await fetch('/api/dashboard');
+        const data = await res.json();
+
+        document.getElementById('last-updated').textContent =
+            `Last updated: ${new Date().toLocaleTimeString()}`;
+
+        // Stats
+        document.getElementById('stat-total-jobs').textContent = data.jobs.total;
+
+        const yes = data.jobs.yes.length;
+        const maybe = data.jobs.maybe.length;
+        const yesMaybe = document.getElementById('stat-yes-maybe');
+        yesMaybe.textContent = `${yes} / ${maybe}`;
+        yesMaybe.className = `text-3xl font-bold ${yes > 0 ? 'score-high' : 'score-mid'}`;
+
+        document.getElementById('stat-applications').textContent = data.applications.total;
+        document.getElementById('stat-active').textContent = `${data.applications.active} active`;
+
+        const followupCount = data.followups.length;
+        const fuEl = document.getElementById('stat-followups');
+        fuEl.textContent = followupCount;
+        fuEl.className = `text-3xl font-bold ${followupCount > 0 ? 'score-low' : 'score-high'}`;
+
+        // Top jobs
+        const topJobs = [...data.jobs.yes, ...data.jobs.maybe]
+            .slice(0, 8);
+
+        if (topJobs.length === 0) {
+            document.getElementById('top-jobs-list').innerHTML =
+                '<p class="text-slate-500 text-sm">No jobs analyzed yet. Run the pipeline.</p>';
+        } else {
+            document.getElementById('top-jobs-list').innerHTML = topJobs.map(job => {
+                const verdict = job.verdict || '';
+                const badgeClass = verdict.includes('YES') ? 'badge-yes' :
+                    verdict.includes('MAYBE') ? 'badge-maybe' : 'badge-no';
+                const score = parseFloat(job.score) || 0;
+                const scoreClass = score >= 8 ? 'score-high' : score >= 6 ? 'score-mid' : 'score-low';
+                return `
+                    <div class="flex items-center justify-between py-2 border-b border-slate-700 last:border-0">
+                        <div class="flex-1 min-w-0">
+                            <p class="text-white text-sm font-medium truncate">${job.title}</p>
+                            <p class="text-slate-400 text-xs">${job.company}</p>
+                        </div>
+                        <div class="flex items-center gap-2 ml-3">
+                            <span class="${scoreClass} font-bold text-sm">${job.score}</span>
+                            <span class="badge ${badgeClass}">${verdict.replace('**', '').trim()}</span>
+                            ${job.url ? `<a href="${job.url}" target="_blank" class="btn btn-ghost text-xs py-1">Apply</a>` : ''}
+			    <button class="btn btn-success text-xs py-1" onclick="quickLogApplication('${(job.title||'').replace(/'/g, '')}', '${(job.company||'').replace(/'/g, '')}', '${job.url||''}', '${job.source||''}')">+ Log</button>
+                        </div>
+                    </div>`;
+            }).join('');
+        }
+
+        // Pipeline status
+        const ps = data.pipeline_status;
+        document.getElementById('pipeline-status').innerHTML = `
+            <div class="flex justify-between">
+                <span class="text-slate-400">Last run</span>
+                <span class="text-white">${ps.last_run}</span>
+            </div>
+            <div class="flex justify-between">
+                <span class="text-slate-400">Next run</span>
+                <span class="text-white">${ps.next_run}</span>
+            </div>
+            <div class="flex justify-between">
+                <span class="text-slate-400">Jobs found</span>
+                <span class="text-white">${ps.jobs_found}</span>
+            </div>
+            <div class="flex justify-between">
+                <span class="text-slate-400">Docs today</span>
+                <span class="text-white">${ps.docs_generated}</span>
+            </div>`;
+
+        // Follow-ups
+        if (data.followups.length === 0) {
+            document.getElementById('followups-list').innerHTML =
+                '<p class="text-slate-500 text-sm">✓ None due in next 3 days</p>';
+        } else {
+            document.getElementById('followups-list').innerHTML = data.followups.map(f => {
+                const today = new Date().toISOString().split('T')[0];
+                const isOverdue = f.follow_up_date <= today;
+                return `
+                    <div class="py-2 border-b border-slate-700 last:border-0 ${isOverdue ? 'followup-urgent pl-2' : 'followup-soon pl-2'}">
+                        <p class="text-white text-sm font-medium">${f.company}</p>
+                        <p class="text-slate-400 text-xs">${f.status}</p>
+                        <p class="text-xs ${isOverdue ? 'text-red-400' : 'text-yellow-400'}">${f.follow_up_date}${isOverdue ? ' — OVERDUE' : ''}</p>
+                    </div>`;
+            }).join('');
+        }
+
+        // Status breakdown
+        const counts = data.applications.status_counts;
+        if (Object.keys(counts).length === 0) {
+            document.getElementById('status-breakdown').innerHTML =
+                '<p class="text-slate-500">No applications yet</p>';
+        } else {
+            document.getElementById('status-breakdown').innerHTML =
+                Object.entries(counts).map(([status, count]) =>
+                    `<div class="flex justify-between">
+                        <span class="text-slate-400">${status}</span>
+                        <span class="text-white font-bold">${count}</span>
+                    </div>`
+                ).join('');
+        }
+
+    } catch (err) {
+        console.error('Dashboard error:', err);
+    }
+}
+
+// ── Jobs ──────────────────────────────────────────────────────
+async function loadJobs() {
+    try {
+        const res = await fetch('/api/jobs');
+        allJobs = await res.json();
+        renderJobs(allJobs);
+    } catch (err) {
+        document.getElementById('jobs-table').innerHTML =
+            '<p class="text-slate-500">Error loading jobs</p>';
+    }
+}
+
+function filterJobs() {
+    const verdict = document.getElementById('filter-verdict').value;
+    const filtered = verdict
+        ? allJobs.filter(j => (j.verdict || '').includes(verdict))
+        : allJobs;
+    renderJobs(filtered);
+}
+
+function renderJobs(jobs) {
+    if (jobs.length === 0) {
+        document.getElementById('jobs-table').innerHTML =
+            '<p class="text-slate-500">No jobs found. Run the scout.</p>';
+        return;
+    }
+
+    document.getElementById('jobs-table').innerHTML = `
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="text-slate-400 text-left border-b border-slate-700">
+                    <th class="pb-2 pr-4">Score</th>
+                    <th class="pb-2 pr-4">Title</th>
+                    <th class="pb-2 pr-4">Company</th>
+                    <th class="pb-2 pr-4">Location</th>
+                    <th class="pb-2 pr-4">Salary Est.</th>
+                    <th class="pb-2 pr-4">Verdict</th>
+                    <th class="pb-2">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${jobs.map(job => {
+                    const score = parseFloat(job.score) || 0;
+                    const scoreClass = score >= 8 ? 'score-high' : score >= 6 ? 'score-mid' : 'score-low';
+                    const verdict = (job.verdict || '').replace(/\*/g, '').trim();
+                    const badgeClass = verdict.includes('YES') ? 'badge-yes' :
+                        verdict.includes('MAYBE') ? 'badge-maybe' : 'badge-no';
+                    return `
+                        <tr class="border-b border-slate-800 cursor-pointer">
+                            <td class="py-3 pr-4 ${scoreClass} font-bold">${job.score || '?'}</td>
+                            <td class="py-3 pr-4 text-white">${job.title}</td>
+                            <td class="py-3 pr-4 text-slate-300">${job.company}</td>
+                            <td class="py-3 pr-4 text-slate-400">${job.location || 'Remote'}</td>
+                            <td class="py-3 pr-4 text-slate-400 text-xs">${job.salary || 'TBD'}</td>
+                            <td class="py-3 pr-4"><span class="badge ${badgeClass}">${verdict}</span></td>
+                            <td class="py-3">
+                                ${job.url ? `<a href="${job.url}" target="_blank" class="btn btn-ghost text-xs py-1">Apply</a>` : ''}
+							    <button class="btn btn-success text-xs py-1" onclick="quickLogApplication('${(job.title||'').replace(/'/g, '')}', '${(job.company||'').replace(/'/g, '')}', '${job.url||''}', '${job.source||''}')">+ Log</button>
+                            </td>
+                        </tr>`;
+                }).join('')}
+            </tbody>
+        </table>`;
+}
+
+// ── Applications ──────────────────────────────────────────────
+async function loadApplications() {
+    try {
+        const res = await fetch('/api/applications');
+        allApplications = await res.json();
+        renderApplications();
+    } catch (err) {
+        document.getElementById('applications-table').innerHTML =
+            '<p class="text-slate-500">Error loading applications</p>';
+    }
+}
+
+function renderApplications() {
+    if (allApplications.length === 0) {
+        document.getElementById('applications-table').innerHTML =
+            '<p class="text-slate-500">No applications tracked yet. Click "Add Application" to start.</p>';
+        return;
+    }
+
+    const today = new Date().toISOString().split('T')[0];
+    const statusFilter = document.getElementById('app-filter-status').value;
+    const sortBy = document.getElementById('app-sort').value;
+
+    // Filter
+    let apps = statusFilter
+        ? allApplications.filter(a => a.status && a.status.includes(statusFilter))
+        : [...allApplications];
+
+    // Sort
+    if (sortBy === 'newest') {
+        apps.sort((a, b) => (b.date_applied || '').localeCompare(a.date_applied || ''));
+    } else if (sortBy === 'oldest') {
+        apps.sort((a, b) => (a.date_applied || '').localeCompare(b.date_applied || ''));
+    } else if (sortBy === 'company') {
+        apps.sort((a, b) => (a.company || '').localeCompare(b.company || ''));
+    } else if (sortBy === 'status') {
+        const order = ['Applied','Phone Screen Scheduled','Phone Screen Complete',
+            'Technical Interview Scheduled','Technical Interview Complete',
+            'Final Interview Scheduled','Final Interview Complete',
+            'Offer Received','Offer Accepted','Offer Declined','Rejected','Withdrawn','No Response - Following Up'];
+        apps.sort((a, b) => order.indexOf(a.status) - order.indexOf(b.status));
+    }
+
+    const statusColor = (status) => {
+        if (!status) return '#94a3b8';
+        if (status.includes('Rejected') || status.includes('Withdrawn')) return '#f87171';
+        if (status.includes('Offer')) return '#34d399';
+        if (status.includes('Interview')) return '#a78bfa';
+        if (status.includes('Phone')) return '#60a5fa';
+        return '#94a3b8';
+    };
+
+    document.getElementById('applications-table').innerHTML = `
+        <div class="text-xs text-slate-500 mb-2">${apps.length} application${apps.length !== 1 ? 's' : ''} shown</div>
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="text-slate-400 text-left border-b border-slate-700">
+                    <th class="pb-2 pr-4">#</th>
+                    <th class="pb-2 pr-4">Company</th>
+                    <th class="pb-2 pr-4">Title</th>
+                    <th class="pb-2 pr-4">Status</th>
+                    <th class="pb-2 pr-4">Applied</th>
+                    <th class="pb-2 pr-4">Follow-up</th>
+                    <th class="pb-2 pr-4">Cover</th>
+                    <th class="pb-2">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${apps.map((app, idx) => {
+                    const isOverdue = app.follow_up_date && app.follow_up_date <= today &&
+                        !['Offer Accepted', 'Rejected', 'Withdrawn'].includes(app.status);
+                    const color = statusColor(app.status);
+                    return `
+                        <tr class="border-b border-slate-800">
+                            <td class="py-3 pr-4 text-slate-500 text-xs">${idx + 1}</td>
+                            <td class="py-3 pr-4 text-white font-medium">${app.company}</td>
+                            <td class="py-3 pr-4 text-slate-300" style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${app.title}">${app.title}</td>
+                            <td class="py-3 pr-4">
+                                <span class="text-xs px-2 py-1 rounded" style="background:#1e293b;color:${color}">
+                                    ${app.status}
+                                </span>
+                            </td>
+                            <td class="py-3 pr-4 text-slate-400">${app.date_applied || '-'}</td>
+                            <td class="py-3 pr-4 ${isOverdue ? 'text-red-400 font-bold' : 'text-slate-400'}">
+                                ${app.follow_up_date || '-'}${isOverdue ? ' ⚠' : ''}
+                            </td>
+                            <td class="py-3 pr-4 text-center">${app.cover_letter ? '✓' : '-'}</td>
+                            <td class="py-3">
+                                <div class="flex gap-1">
+                                    <button class="btn btn-ghost text-xs py-1"
+                                        onclick="openStatusModal('${app.id}', '${(app.company||'').replace(/'/g,'')}', '${(app.title||'').replace(/'/g,'')}')">
+                                        Update
+                                    </button>
+                                    ${app.url ? `<a href="${app.url}" target="_blank" class="btn btn-ghost text-xs py-1">Link</a>` : ''}
+                                    <button class="btn btn-danger text-xs py-1"
+                                        onclick="deleteApplication('${app.id}', '${(app.company||'').replace(/'/g,'')}')">
+                                        Delete
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>`;
+                }).join('')}
+            </tbody>
+        </table>`;
+}
+
+function exportUnemploymentReport() {
+    // Get date range for current week (Sun-Sat) and last 4 weeks
+    const today = new Date();
+    const fourWeeksAgo = new Date(today);
+    fourWeeksAgo.setDate(today.getDate() - 28);
+    const cutoff = fourWeeksAgo.toISOString().split('T')[0];
+
+    // Filter to recent apps, sort newest first
+    const recent = [...allApplications]
+        .filter(a => (a.date_applied || '') >= cutoff)
+        .sort((a, b) => (b.date_applied || '').localeCompare(a.date_applied || ''));
+
+    // Group by week
+    const weeks = {};
+    recent.forEach(app => {
+        const d = new Date(app.date_applied + 'T12:00:00');
+        // Get Sunday of that week
+        const sunday = new Date(d);
+        sunday.setDate(d.getDate() - d.getDay());
+        const saturday = new Date(sunday);
+        saturday.setDate(sunday.getDate() + 6);
+        const weekKey = sunday.toLocaleDateString('en-US', {month:'2-digit',day:'2-digit',year:'numeric'})
+            + ' - ' + saturday.toLocaleDateString('en-US', {month:'2-digit',day:'2-digit',year:'numeric'});
+        if (!weeks[weekKey]) weeks[weekKey] = [];
+        weeks[weekKey].push(app);
+    });
+
+    let report = `FLORIDA REEMPLOYMENT ASSISTANCE\nWEEKLY JOB SEARCH ACTIVITY REPORT\n`;
+    report += `Generated: ${today.toLocaleDateString('en-US', {weekday:'long',year:'numeric',month:'long',day:'numeric'})}\n`;
+    report += `Claimant: James T. Debruhl\n`;
+    report += `=${'='.repeat(60)}\n\n`;
+
+    if (Object.keys(weeks).length === 0) {
+        report += 'No applications found in the last 4 weeks.\n';
+    } else {
+        Object.entries(weeks).forEach(([weekRange, apps]) => {
+            report += `WEEK: ${weekRange}\n`;
+            report += `-${'-'.repeat(58)}\n`;
+            report += `Total contacts this week: ${apps.length}\n\n`;
+            apps.forEach((app, i) => {
+                report += `${i + 1}. Employer: ${app.company}\n`;
+                report += `   Position: ${app.title}\n`;
+                report += `   Date: ${app.date_applied}\n`;
+                report += `   Method: ${app.source || 'Online Application'}\n`;
+                report += `   Status: ${app.status}\n`;
+                if (app.url) report += `   URL: ${app.url}\n`;
+                report += `\n`;
+            });
+            report += '\n';
+        });
+    }
+
+    report += `${'='.repeat(60)}\n`;
+    report += `Total applications tracked (last 4 weeks): ${recent.length}\n`;
+
+    // Download as text file
+    const filename = `FL_Unemployment_Report_${today.toISOString().split('T')[0]}.txt`;
+    const blob = new Blob([report], {type: 'text/plain'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+// ── Documents ─────────────────────────────────────────────────
+async function loadDocuments() {
+    try {
+        const res = await fetch('/api/documents');
+        allDocs = await res.json();
+        renderAllDocuments(allDocs);
+    } catch (err) {
+        console.error('Documents error:', err);
+    }
+}
+
+function renderAllDocuments(docs) {
+    renderFileList('doc-resumes', docs.resumes || [], 'resumes');
+    renderFileList('doc-covers', docs.cover_letters || [], 'cover_letters');
+    renderFileList('doc-interview', docs.interview_prep || [], 'interview_prep');
+    renderFileList('doc-digests', docs.digests || [], 'digests');
+
+    const setCount = (id, arr) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = arr.length ? `(${arr.length})` : '';
+    };
+    setCount('resume-count', docs.resumes || []);
+    setCount('cover-count', docs.cover_letters || []);
+    setCount('interview-count', docs.interview_prep || []);
+    setCount('digest-count', docs.digests || []);
+}
+
+function filterDocuments() {
+    const query = document.getElementById('doc-search').value.toLowerCase().trim();
+    if (!query) { renderAllDocuments(allDocs); return; }
+    const filter = arr => (arr || []).filter(f => f.name.toLowerCase().includes(query));
+    renderAllDocuments({
+        resumes: filter(allDocs.resumes),
+        cover_letters: filter(allDocs.cover_letters),
+        interview_prep: filter(allDocs.interview_prep),
+        digests: filter(allDocs.digests)
+    });
+}
+
+function renderFileList(elementId, files, docType) {
+    const el = document.getElementById(elementId);
+    if (!files || files.length === 0) {
+        el.innerHTML = '<p class="text-slate-500 text-sm">No files yet</p>';
+        return;
+    }
+    el.innerHTML = files.map(f => `
+        <div class="flex items-center justify-between py-2 border-b border-slate-800 last:border-0">
+            <div class="min-w-0 flex-1">
+                <p class="text-white text-xs truncate" title="${f.name}">${f.name}</p>
+                <p class="text-slate-500 text-xs">${f.modified} · ${f.size}</p>
+            </div>
+            <div class="flex gap-1 ml-2 flex-shrink-0">
+                <button class="btn btn-ghost text-xs py-1"
+                    onclick="previewDocument('${docType}', '${f.name}')">View</button>
+                ${docType === 'resumes' || docType === 'cover_letters' ?
+                    `<button class="btn btn-success text-xs py-1"
+                        onclick="cleanExport('${docType}', '${f.name}')">Export</button>` : ''}
+            </div>
+        </div>`).join('');
+}
+
+async function previewDocument(docType, filename) {
+    document.getElementById('modal-title').textContent = filename;
+    document.getElementById('modal-content').textContent = 'Loading...';
+    document.getElementById('doc-modal').classList.add('open');
+
+    try {
+        const res = await fetch(`/api/documents/${docType}/${filename}`);
+        const data = await res.json();
+        document.getElementById('modal-content').textContent = data.content;
+    } catch (err) {
+        document.getElementById('modal-content').textContent = 'Error loading file.';
+    }
+}
+
+function closeModal() {
+    document.getElementById('doc-modal').classList.remove('open');
+}
+
+// ── Add Application Modal ─────────────────────────────────────
+function openAddModal() {
+    document.getElementById('add-date').value = new Date().toISOString().split('T')[0];
+    document.getElementById('add-modal').classList.add('open');
+}
+
+function closeAddModal() {
+    document.getElementById('add-modal').classList.remove('open');
+}
+
+async function submitApplication() {
+    const data = {
+        company: document.getElementById('add-company').value,
+        title: document.getElementById('add-title').value,
+        url: document.getElementById('add-url').value,
+        source: document.getElementById('add-source').value,
+        date_applied: document.getElementById('add-date').value,
+        resume_version: document.getElementById('add-resume').value,
+        cover_letter: document.getElementById('add-cover').checked,
+        notes: document.getElementById('add-notes').value
+    };
+
+    if (!data.company || !data.title) {
+        alert('Company and title are required');
+        return;
+    }
+
+    await fetch('/api/applications', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(data)
+    });
+
+    closeAddModal();
+    loadApplications();
+    loadDashboard();
+}
+
+// ── Status Modal ──────────────────────────────────────────────
+function openStatusModal(appId, company, title) {
+    currentAppId = appId;
+    document.getElementById('status-modal-job').textContent = `${company} — ${title}`;
+    document.getElementById('status-notes').value = '';
+    document.getElementById('status-modal').classList.add('open');
+}
+
+function closeStatusModal() {
+    document.getElementById('status-modal').classList.remove('open');
+    currentAppId = null;
+}
+
+async function submitStatus() {
+    if (!currentAppId) return;
+
+    const data = {
+        status: document.getElementById('status-select').value,
+        notes: document.getElementById('status-notes').value
+    };
+
+    await fetch(`/api/applications/${currentAppId}`, {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(data)
+    });
+
+    closeStatusModal();
+    loadApplications();
+    loadDashboard();
+}
+
+// ── Run Scripts ───────────────────────────────────────────────
+function runScript(script) {
+    showTab('run');
+
+    const logEl = document.getElementById('log-output');
+    logEl.innerHTML = `<span class="text-blue-400">Starting ${script}...</span>\n`;
+
+    const eventSource = new EventSource(`/api/run/${script}`);
+
+    eventSource.onmessage = (event) => {
+        if (event.data === '__DONE__') {
+            eventSource.close();
+            logEl.innerHTML += `\n<span class="success">✓ Done</span>`;
+            loadDashboard();
+            return;
+        }
+
+        const line = document.createElement('div');
+        const text = event.data;
+
+        if (text.includes('error') || text.includes('Error') || text.includes('✗')) {
+            line.className = 'error';
+        } else if (text.includes('✓') || text.includes('complete') || text.includes('success')) {
+            line.className = 'success';
+        }
+
+        line.textContent = text;
+        logEl.appendChild(line);
+        logEl.scrollTop = logEl.scrollHeight;
+    };
+
+    eventSource.onerror = () => {
+        eventSource.close();
+        logEl.innerHTML += '\n<span class="error">Connection closed</span>';
+    };
+}
+
+function clearLog() {
+    document.getElementById('log-output').innerHTML =
+        '<span class="text-slate-600">Ready...</span>';
+}
+
+function quickLogApplication(title, company, url, source) {
+    const today = new Date().toISOString().split('T')[0];
+    fetch('/api/applications', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            company: company,
+            title: title,
+            url: url,
+            source: source,
+            date_applied: today,
+            resume_version: 'master',
+            cover_letter: false,
+            notes: 'Logged from dashboard'
+        })
+    })
+    .then(res => res.json())
+    .then(result => {
+        if (result.success) {
+            alert('Logged: ' + title + ' @ ' + company);
+            loadDashboard();
+        }
+    });
+}
+
+async function cleanExport(docType, filename) {
+    try {
+        const res = await fetch(`/api/documents/${docType}/${filename}`);
+        const data = await res.json();
+        let content = data.content;
+        
+        // Remove metadata header block
+        const headerPatterns = [
+            /TAILORED RESUME:.*?\n/,
+            /COVER LETTER:.*?\n/,
+            /Score:.*?\n/,
+            /URL:.*?\n/,
+            /={3,}\n/g,
+            /===AGENT NOTES.*?===\n/gs,
+            /Current target compensation.*?\n/,
+            /Use this to assess.*?\n/,
+            /Do not print.*?\n/,
+            /NOTES:\n.*?compensation.*?\n/gs,
+            /Seeking to maintain.*?\n/
+        ];
+        
+        // Remove everything before "James T Debruhl"
+        const nameIndex = content.indexOf('James T Debruhl');
+        if (nameIndex > 0) {
+            content = content.substring(nameIndex);
+        }
+        
+        // Clean up trailing metadata
+        const trailingPatterns = [
+            /\*Tailored for.*$/gms,
+            /This resume is tailored.*$/gms,
+            /---\s*$\n.*tailored.*/gims
+        ];
+        
+        trailingPatterns.forEach(pattern => {
+            content = content.replace(pattern, '');
+        });
+        
+        content = content.trim();
+        
+        // Download as text file
+        const cleanFilename = filename.replace('.txt', '_CLEAN.txt');
+        const blob = new Blob([content], {type: 'text/plain'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = cleanFilename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        alert('Clean version downloaded: ' + cleanFilename);
+        
+    } catch (err) {
+        alert('Export failed: ' + err.message);
+    }
+}
+
+// ── Manual Job Analysis ───────────────────────────────────────
+function analyzeManualJob() {
+    const title = document.getElementById('manual-title').value.trim();
+    const company = document.getElementById('manual-company').value.trim();
+    const description = document.getElementById('manual-description').value.trim();
+    
+    if (!title || !company || !description) {
+        alert('Title, company, and description are required');
+        return;
+    }
+    
+    const outputEl = document.getElementById('manual-output');
+    outputEl.innerHTML = '<span class="text-blue-400">Starting analysis... (30-60 seconds)</span>\n';
+    document.getElementById('manual-score-badge').innerHTML = '';
+    
+    const data = {
+        title: title,
+        company: company,
+        location: document.getElementById('manual-location').value.trim() || 'Not specified',
+        url: document.getElementById('manual-url').value.trim(),
+        description: description
+    };
+    
+    fetch('/api/analyze_job', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(data)
+    }).then(response => {
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let inResult = false;
+        
+        function read() {
+            reader.read().then(({done, value}) => {
+                if (done) return;
+                
+                const text = decoder.decode(value);
+                const lines = text.split('\n');
+                
+                lines.forEach(line => {
+                    if (line.startsWith('data: ')) {
+                        const content = line.slice(6);
+                        
+						if (content === '__DONE__') {
+							outputEl.innerHTML += '\n<span class="success">>> Analysis complete</span>';
+							document.getElementById('manual-log-btn').classList.remove('hidden');
+							return;
+						}
+						
+                        if (content === '---RESULT---') {
+                            inResult = true;
+                            outputEl.innerHTML += '\n<span class="text-blue-400">=== ANALYSIS RESULTS ===</span>\n';
+                            return;
+                        }
+                        
+                        if (content) {
+                            const div = document.createElement('div');
+                            
+                            if (content.includes('FIT SCORE:')) {
+                                div.className = 'score-high font-bold';
+                                // Extract and display score badge
+                                const scoreMatch = content.match(/(\d+\.?\d*)/);
+                                if (scoreMatch) {
+                                    const score = parseFloat(scoreMatch[1]);
+                                    const scoreClass = score >= 8 ? 'badge-yes' : score >= 6 ? 'badge-maybe' : 'badge-no';
+                                    document.getElementById('manual-score-badge').innerHTML = 
+                                        `<span class="badge ${scoreClass} text-sm">${score}/10</span>`;
+                                }
+                            } else if (content.includes('WORTH APPLYING:')) {
+                                div.className = content.includes('YES') ? 'success font-bold' : 
+                                               content.includes('NO') ? 'error font-bold' : 'text-yellow-400 font-bold';
+                            } else if (content.includes('RED FLAGS:') || content.includes('Error:')) {
+                                div.className = 'error';
+                            } else if (content.includes('APPLICATION STRATEGY:')) {
+                                div.className = 'success';
+                            }
+                            
+                            div.textContent = content;
+                            outputEl.appendChild(div);
+                            outputEl.scrollTop = outputEl.scrollHeight;
+                        }
+                    }
+                });
+                
+                read();
+            });
+        }
+        read();
+    }).catch(err => {
+        outputEl.innerHTML += `\n<span class="error">Error: ${err.message}</span>`;
+    });
+}
+
+function analyzeAndGenerate() {
+    const title = document.getElementById('manual-title').value.trim();
+    const company = document.getElementById('manual-company').value.trim();
+    const description = document.getElementById('manual-description').value.trim();
+    
+    if (!title || !company || !description) {
+        alert('Title, company, and description are required');
+        return;
+    }
+    
+    const outputEl = document.getElementById('manual-output');
+    outputEl.innerHTML = '<span class="text-blue-400">Starting full pipeline (score + resume + cover letter)...\nThis takes 3-5 minutes. Please wait.</span>\n';
+    document.getElementById('manual-score-badge').innerHTML = '';
+    
+    const data = {
+        title: title,
+        company: company,
+        location: document.getElementById('manual-location').value.trim() || 'Not specified',
+        url: document.getElementById('manual-url').value.trim(),
+        description: description
+    };
+    
+    fetch('/api/analyze_and_generate', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(data)
+    }).then(response => {
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        
+        function read() {
+            reader.read().then(({done, value}) => {
+                if (done) return;
+                
+                const text = decoder.decode(value);
+                const lines = text.split('\n');
+                
+                lines.forEach(line => {
+                    if (line.startsWith('data: ')) {
+                        const content = line.slice(6);
+                        
+						if (content === '__DONE__') {
+							outputEl.innerHTML += '\n<span class="success">>> Analysis complete</span>';
+							document.getElementById('manual-log-btn').classList.remove('hidden');
+							return;
+						}
+						
+                        if (content) {
+                            const div = document.createElement('div');
+                            
+                            if (content.includes('Score:') && content.includes('/10')) {
+                                div.className = 'score-high font-bold';
+                                const scoreMatch = content.match(/(\d+\.?\d*)/);
+                                if (scoreMatch) {
+                                    const score = parseFloat(scoreMatch[1]);
+                                    const scoreClass = score >= 8 ? 'badge-yes' : score >= 6 ? 'badge-maybe' : 'badge-no';
+                                    document.getElementById('manual-score-badge').innerHTML = 
+                                        `<span class="badge ${scoreClass} text-sm">${score}/10</span>`;
+                                }
+                            } else if (content.includes('saved') || content.includes('complete')) {
+                                div.className = 'success';
+                            } else if (content.includes('Error') || content.includes('below threshold')) {
+                                div.className = 'error';
+                            } else if (content.startsWith('[')) {
+                                div.className = 'text-blue-400 font-bold';
+                            }
+                            
+                            div.textContent = content;
+                            outputEl.appendChild(div);
+                            outputEl.scrollTop = outputEl.scrollHeight;
+                        }
+                    }
+                });
+                
+                read();
+            });
+        }
+        read();
+    }).catch(err => {
+        outputEl.innerHTML += `\n<span class="error">Error: ${err.message}</span>`;
+    });
+}
+
+function clearManualForm() {
+    document.getElementById('manual-title').value = '';
+    document.getElementById('manual-company').value = '';
+    document.getElementById('manual-location').value = '';
+    document.getElementById('manual-url').value = '';
+    document.getElementById('manual-description').value = '';
+    document.getElementById('manual-output').innerHTML = 
+        '<span class="text-slate-600">Paste a job description above and click Analyze...</span>';
+    document.getElementById('manual-score-badge').innerHTML = '';
+}
+
+function logManualApplication() {
+    const title = document.getElementById('manual-title').value.trim();
+    const company = document.getElementById('manual-company').value.trim();
+    const url = document.getElementById('manual-url').value.trim();
+    
+    if (!title || !company) {
+        alert('No job details to log');
+        return;
+    }
+    
+    const today = new Date().toISOString().split('T')[0];
+    fetch('/api/applications', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            company: company,
+            title: title,
+            url: url,
+            source: 'Manual Entry',
+            date_applied: today,
+            resume_version: 'tailored',
+            cover_letter: true,
+            notes: 'Analyzed and documents generated via Analyze Job tab'
+        })
+    })
+    .then(res => res.json())
+    .then(result => {
+        if (result.success) {
+            alert('Logged: ' + title + ' @ ' + company);
+            document.getElementById('manual-log-btn').classList.add('hidden');
+            loadDashboard();
+        }
+    });
+}
+
+function deleteApplication(appId, company) {
+    if (!confirm(`Delete application for ${company}? This cannot be undone.`)) return;
+    
+    fetch(`/api/applications/${appId}`, {
+        method: 'DELETE'
+    })
+    .then(res => res.json())
+    .then(result => {
+        if (result.success) {
+            loadApplications();
+            loadDashboard();
+        }
+    });
+}
+
+function forceGenerate() {
+    const title = document.getElementById('manual-title').value.trim();
+    const company = document.getElementById('manual-company').value.trim();
+    const description = document.getElementById('manual-description').value.trim();
+    
+    if (!title || !company || !description) {
+        alert('Title, company, and description are required');
+        return;
+    }
+    
+    const outputEl = document.getElementById('manual-output');
+    outputEl.innerHTML = '<span class="text-yellow-400">Force generating documents regardless of score...</span>\n';
+    
+    const data = {
+        title: title,
+        company: company,
+        location: document.getElementById('manual-location').value.trim() || 'Not specified',
+        url: document.getElementById('manual-url').value.trim(),
+        description: description,
+        force: true
+    };
+    
+    fetch('/api/analyze_and_generate', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(data)
+    }).then(response => {
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        
+        function read() {
+            reader.read().then(({done, value}) => {
+                if (done) return;
+                const text = decoder.decode(value);
+                const lines = text.split('\n');
+                lines.forEach(line => {
+                    if (line.startsWith('data: ')) {
+                        const content = line.slice(6);
+                        if (content === '__DONE__') {
+                            outputEl.innerHTML += '\n<span class="success">>> Done. Check Documents tab.</span>';
+                            loadDashboard();
+                            return;
+                        }
+                        if (content) {
+                            const div = document.createElement('div');
+                            if (content.includes('saved') || content.includes('complete')) div.className = 'success';
+                            else if (content.startsWith('[')) div.className = 'text-blue-400 font-bold';
+                            div.textContent = content;
+                            outputEl.appendChild(div);
+                            outputEl.scrollTop = outputEl.scrollHeight;
+                        }
+                    }
+                });
+                read();
+            });
+        }
+        read();
+    });
+}
+
+// ── Init ──────────────────────────────────────────────────────
+loadDashboard();
+setInterval(loadDashboard, 60000); // Refresh every minute
+</script>
+
+</body>
+</html>

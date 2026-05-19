@@ -1,0 +1,7 @@
+crewai
+flask
+requests
+schedule
+python-docx
+feedparser
+beautifulsoup4

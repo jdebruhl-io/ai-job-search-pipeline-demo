@@ -1,0 +1,63 @@
+flowchart TD
+    SCHED["Windows Task Scheduler\nDaily 7:00 AM · wakes PC from sleep\nruns run_scheduler.bat"]
+    ORCH["scheduler.py\nOrchestrates Steps 1–4 via subprocess\nlogs to scheduler.log"]
+    SCOUT["job_scout.py — Scout Agent\nRemoteOK · Jobicy · USAJobs · Remotive\nBooz Allen · SAIC · Leidos · L3Harris · deduplicates"]
+    JOBS[("results\\job_data\\jobs_YYYYMMDD.json")]
+    PIPE["pipeline.py — Analyst Agent\nCrewAI + Ollama · qwen3:14b\nScores each job 1–10 · 1hr timeout\nPenalizes: deploy/SASE/cloud\nRewards: compliance/GRC/SQL"]
+    REPORT[("results\\job_reports\\report_YYYYMMDD.txt")]
+    BLOCK["Blocklist\n8 companies blocked"]
+    STAGE3["stage3_pipeline.py — Orchestrator\nLoads jobs · re-scores · filters score >= 7.0\n2hr timeout"]
+    DECISION{Score >= 7.0?}
+    LOW[("Logged in digest\nBelow threshold")]
+    TAILOR["Tailor Agent\nresume_tailor.py"]
+    COVER["Cover Letter Agent\ncover_letter.py · 400 words max"]
+    S3DIGEST[("results\\digests\\stage3_digest_YYYYMMDD.txt")]
+    DIGEST["daily_digest.py\nParses report · loads applications.json\nYES/MAYBE jobs · follow-ups due in 3 days"]
+    FINAL[("results\\digests\\digest_YYYYMMDD.txt\nPipeline complete")]
+
+    SCHED --> ORCH
+    ORCH --> SCOUT
+    SCOUT --> JOBS
+    JOBS --> PIPE
+    PIPE --> REPORT
+    REPORT --> STAGE3
+    BLOCK -. checked .-> STAGE3
+    STAGE3 --> DECISION
+    DECISION -->|score < 7| LOW
+    DECISION -->|score >= 7| TAILOR
+    DECISION -->|score >= 7| COVER
+    TAILOR --> S3DIGEST
+    COVER --> S3DIGEST
+    S3DIGEST --> DIGEST
+    DIGEST --> FINAL
+
+    subgraph Standalone Tools
+        FLASK["app.py — Flask Dashboard\nlocalhost:5000 · Manual analysis · SSE log stream"]
+        TRACKER["tracker.py — Application Tracker\n13 status states · follow-up reminders"]
+        PREP["interview_prep.py\nResearch Agent · 10 Q&As · salary negotiation"]
+        ANALYST["job_analyst.py\nStandalone analyst · paste-in JD mode"]
+    end
+
+    subgraph LLM Layer
+        LLM["Ollama · qwen3:14b · localhost:11434\nRTX 4070 Super · CrewAI · Zero API cost"]
+    end
+
+    PIPE -.->|LLM calls| LLM
+    STAGE3 -.->|LLM calls| LLM
+
+    style SCHED fill:#F1EFE8,stroke:#B4B2A9
+    style ORCH fill:#EEEDFE,stroke:#AFA9EC
+    style SCOUT fill:#E1F5EE,stroke:#5DCAA5
+    style PIPE fill:#EEEDFE,stroke:#AFA9EC
+    style STAGE3 fill:#EEEDFE,stroke:#AFA9EC
+    style DECISION fill:#FAEEDA,stroke:#EF9F27
+    style BLOCK fill:#FCEBEB,stroke:#F09595
+    style TAILOR fill:#E1F5EE,stroke:#5DCAA5
+    style COVER fill:#E1F5EE,stroke:#5DCAA5
+    style DIGEST fill:#E1F5EE,stroke:#5DCAA5
+    style FINAL fill:#EAF3DE,stroke:#97C459
+    style FLASK fill:#E6F1FB,stroke:#85B7EB
+    style TRACKER fill:#E6F1FB,stroke:#85B7EB
+    style PREP fill:#E6F1FB,stroke:#85B7EB
+    style ANALYST fill:#E6F1FB,stroke:#85B7EB
+    style LLM fill:#F1EFE8,stroke:#B4B2A9

@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg
+*.egg-info/
+dist/
+build/
+
+# Virtual environment
+venv/
+.venv/
+env/
+
+# Generated output — never commit results
+results/
+logs/
+followup/
+
+# Personal data — never commit
+data/candidate_profile.md
+data/*.md
+!data/candidate_profile_example.md
+
+# Temp/test artifacts
+tests/temp_job.txt
+tests/run_sofi_analysis.py
+
+# Claude Code working directory
+.claude/
+Thumbs.db
+desktop.ini
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Secrets / API keys
+.env
+*.env
+config_local.py

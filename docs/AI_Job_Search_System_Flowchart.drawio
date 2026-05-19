@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile>
+  <diagram name="AI Job Search System">
+    <mxGraphModel adaptiveColors="auto">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="title" value="AI Job Search System — Pipeline Flowchart" style="text;html=1;fontStyle=1;fontSize=18;align=center;" vertex="1" parent="1">
+          <mxGeometry x="100" y="10" width="660" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="sched" value="&lt;b&gt;Windows Task Scheduler&lt;/b&gt;&lt;br&gt;Daily 7:00 AM · wakes PC from sleep · runs run_scheduler.bat" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="230" y="55" width="400" height="55" as="geometry"/>
+        </mxCell>
+        <mxCell id="e1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;" edge="1" source="sched" target="schedpy" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="schedpy" value="&lt;b&gt;scheduler.py&lt;/b&gt;&lt;br&gt;Orchestrates Steps 1-4 via subprocess · logs to scheduler.log" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="230" y="160" width="400" height="55" as="geometry"/>
+        </mxCell>
+        <mxCell id="e2" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;" edge="1" source="schedpy" target="scout" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="s1lbl" value="Step 1" style="text;html=1;fontStyle=1;fontSize=10;fontColor=#888888;" vertex="1" parent="1">
+          <mxGeometry x="50" y="272" width="50" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="scout" value="&lt;b&gt;job_scout.py — Scout Agent&lt;/b&gt;&lt;br&gt;RemoteOK · Jobicy · USAJobs · Remotive&lt;br&gt;Booz Allen · SAIC · Leidos · L3Harris · deduplicates" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="155" y="265" width="550" height="65" as="geometry"/>
+        </mxCell>
+        <mxCell id="e3" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;" edge="1" source="scout" target="jobsjson" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="jobsjson" value="results\job_data\jobs_YYYYMMDD.json — Raw deduplicated job data · timestamped" style="shape=mxgraph.flowchart.stored_data;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="235" y="380" width="390" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="e4" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;" edge="1" source="jobsjson" target="pipe" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="s2lbl" value="Step 2" style="text;html=1;fontStyle=1;fontSize=10;fontColor=#888888;" vertex="1" parent="1">
+          <mxGeometry x="50" y="482" width="50" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="pipe" value="&lt;b&gt;pipeline.py — Analyst Agent (CrewAI + Ollama)&lt;/b&gt;&lt;br&gt;qwen3:14b scores each job 1-10 vs profile · 1hr timeout&lt;br&gt;Penalizes: deploy/SASE/cloud · Rewards: compliance/GRC/SQL" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="135" y="475" width="590" height="65" as="geometry"/>
+        </mxCell>
+        <mxCell id="e5" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;" edge="1" source="pipe" target="report" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="report" value="results\job_reports\report_YYYYMMDD.txt — Full scored analysis: FIT SCORE · WORTH APPLYING" style="shape=mxgraph.flowchart.stored_data;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="215" y="592" width="430" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="e6" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;" edge="1" source="report" target="stage3" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="s3lbl" value="Step 3" style="text;html=1;fontStyle=1;fontSize=10;fontColor=#888888;" vertex="1" parent="1">
+          <mxGeometry x="50" y="700" width="50" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="stage3" value="&lt;b&gt;stage3_pipeline.py — Orchestrator&lt;/b&gt;&lt;br&gt;Loads jobs · re-scores · filters score &amp;gt;= 7.0 · 2hr timeout&lt;br&gt;Runs Tailor + Cover Letter agents per passing job" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="155" y="692" width="530" height="65" as="geometry"/>
+        </mxCell>
+        <mxCell id="blocklist" value="&lt;b&gt;Blocklist&lt;/b&gt;&lt;br&gt;8 companies" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="20" y="702" width="110" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="eblk" value="checked" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;dashed=1;strokeColor=#b85450;fontColor=#b85450;fontSize=10;" edge="1" source="blocklist" target="stage3" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e7" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;" edge="1" source="stage3" target="decision" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="decision" value="Score &amp;gt;= 7.0?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="310" y="807" width="240" height="75" as="geometry"/>
+        </mxCell>
+        <mxCell id="eno" value="score &lt; 7" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#666666;fontSize=10;" edge="1" source="decision" target="lowbox" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="lowbox" value="Logged in digest&lt;br&gt;Below threshold" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="80" y="820" width="150" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="eyes" value="score &gt;= 7" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#82b366;fontSize=10;" edge="1" source="decision" target="tailor" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="eyesc" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#82b366;" edge="1" source="decision" target="cover" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="tailor" value="&lt;b&gt;Tailor Agent&lt;/b&gt;&lt;br&gt;resume_tailor.py&lt;br&gt;results\resumes\" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="620" y="807" width="190" height="65" as="geometry"/>
+        </mxCell>
+        <mxCell id="cover" value="&lt;b&gt;Cover Letter Agent&lt;/b&gt;&lt;br&gt;cover_letter.py · 400 words&lt;br&gt;results\cover_letters\" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="620" y="902" width="190" height="65" as="geometry"/>
+        </mxCell>
+        <mxCell id="etail" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;" edge="1" source="tailor" target="s3digest" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="ecov" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;" edge="1" source="cover" target="s3digest" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="s3digest" value="results\digests\stage3_digest_YYYYMMDD.txt&lt;br&gt;YES · BLOCKED · MAYBE sections · doc filenames listed" style="shape=mxgraph.flowchart.stored_data;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="210" y="1022" width="440" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="e8" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;" edge="1" source="s3digest" target="digest" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="s4lbl" value="Step 4" style="text;html=1;fontStyle=1;fontSize=10;fontColor=#888888;" vertex="1" parent="1">
+          <mxGeometry x="50" y="1130" width="50" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="digest" value="&lt;b&gt;daily_digest.py&lt;/b&gt;&lt;br&gt;Parses report · loads applications.json · YES/MAYBE jobs · follow-ups due in 3 days" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="175" y="1122" width="510" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="e9" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;" edge="1" source="digest" target="final" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="final" value="&lt;b&gt;results\digests\digest_YYYYMMDD.txt&lt;/b&gt;&lt;br&gt;Pipeline complete · scheduler.log updated" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="240" y="1232" width="380" height="55" as="geometry"/>
+        </mxCell>
+        <mxCell id="standalone" value="Standalone Tools" style="swimlane;startSize=30;fillColor=#dae8fc;strokeColor=#6c8ebf;html=1;fontStyle=1;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="30" y="1342" width="800" height="155" as="geometry"/>
+        </mxCell>
+        <mxCell id="flask" value="&lt;b&gt;app.py&lt;/b&gt;&lt;br&gt;Flask Dashboard&lt;br&gt;localhost:5000&lt;br&gt;Manual analysis · SSE stream" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="standalone">
+          <mxGeometry x="15" y="40" width="165" height="85" as="geometry"/>
+        </mxCell>
+        <mxCell id="tracker" value="&lt;b&gt;tracker.py&lt;/b&gt;&lt;br&gt;Application Tracker&lt;br&gt;13 status states&lt;br&gt;Follow-up reminders" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="standalone">
+          <mxGeometry x="205" y="40" width="165" height="85" as="geometry"/>
+        </mxCell>
+        <mxCell id="intprep" value="&lt;b&gt;interview_prep.py&lt;/b&gt;&lt;br&gt;Research Agent&lt;br&gt;10 Q&amp;As · talking points&lt;br&gt;Salary negotiation" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="standalone">
+          <mxGeometry x="395" y="40" width="165" height="85" as="geometry"/>
+        </mxCell>
+        <mxCell id="analyst" value="&lt;b&gt;job_analyst.py&lt;/b&gt;&lt;br&gt;Standalone Analyst&lt;br&gt;Paste-in JD mode&lt;br&gt;Verbose gap analysis" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="standalone">
+          <mxGeometry x="615" y="40" width="165" height="85" as="geometry"/>
+        </mxCell>
+        <mxCell id="llm" value="&lt;b&gt;All LLM Calls: Ollama · qwen3:14b · localhost:11434 · RTX 4070 Super · CrewAI orchestration · Zero API cost · Fully local&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="90" y="1545" width="680" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="ellm1" value="LLM calls" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;dashed=1;strokeColor=#9673a6;fontSize=10;" edge="1" source="pipe" target="llm" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="ellm2" value="LLM calls" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;dashed=1;strokeColor=#9673a6;fontSize=10;" edge="1" source="stage3" target="llm" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
